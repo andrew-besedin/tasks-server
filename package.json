@@ -11,10 +11,12 @@
   "description": "",
   "dependencies": {
     "express": "^5.1.0",
+    "multer": "^2.0.2",
     "node-json-db": "^2.3.1",
     "tsx": "^4.20.5"
   },
   "devDependencies": {
-    "@types/express": "^5.0.3"
+    "@types/express": "^5.0.3",
+    "@types/multer": "^2.0.0"
   }
 }
