@@ -1,0 +1,9 @@
+services:
+  server:
+    build: .
+    container_name: tasks-server
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./db.json:/app/db.json
+      - ./uploads:/app/uploads
