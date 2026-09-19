@@ -52,13 +52,20 @@ router.get("/tasks", async (req, res) => {
 });
 
 router.post("/tasks", async (req, res) => {
+  const taskName = typeof req.body.taskName === "string" ? req.body.taskName.trim() : "";
+
+  if (!taskName) {
+    res.status(400).send({ error: "Task name must not be empty" });
+    return;
+  }
+
   const tasksObjs = await db.getObjectDefault("/tasks", []);
 
   const tasks = tasksObjs.map(task => new Task(task));
 
   tasks.push(new Task({
     id: (tasks.length + 1).toString(),
-    name: req.body.taskName,
+    name: taskName,
     status: 0,
     fileNames: [],
   }));
