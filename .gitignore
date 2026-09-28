@@ -2,3 +2,4 @@ node_modules
 static
 db.json
 /uploads
+.env

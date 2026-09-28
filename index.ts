@@ -1,8 +1,9 @@
 import express, { Router } from "express";
 import path from 'path';
 import { fileURLToPath } from "url";
-import { JsonDB, Config } from 'node-json-db';
 import multer from "multer";
+import { initDatabase } from "./database";
+import { Task, type TaskStatus } from "./models/Task";
 
 const app = express();
 const PORT = 3000;
@@ -28,25 +29,13 @@ app.use(express.urlencoded({ extended: true }));
 
 const router = Router();
 
-const db = new JsonDB(new Config("db.json", true, false, '/'));
-
-class Task {
-  id: string | null;
-  name: string;
-  status: 0 | 1 | 2;
-  fileNames: string[];
-  constructor(params: any = {}) {
-    this.id = params?.id || null;
-    this.name = params?.name || "";
-    this.status = params?.status || 0;
-    this.fileNames = params?.fileNames || [];
-  }
+function parseTaskId(rawId: string) {
+  const id = Number(rawId);
+  return Number.isInteger(id) && id > 0 ? id : null;
 }
 
 router.get("/tasks", async (req, res) => {
-  const tasksObjs = await db.getObjectDefault("/tasks", []);
-
-  const tasks = tasksObjs.map(task => new Task(task));
+  const tasks = await Task.findAll({ order: [["id", "ASC"]] });
 
   res.status(200).send(tasks);
 });
@@ -59,29 +48,14 @@ router.post("/tasks", async (req, res) => {
     return;
   }
 
-  const tasksObjs = await db.getObjectDefault("/tasks", []);
-
-  const tasks = tasksObjs.map(task => new Task(task));
-
-  tasks.push(new Task({
-    id: (tasks.length + 1).toString(),
-    name: taskName,
-    status: 0,
-    fileNames: [],
-  }));
-
-  await db.push("/tasks", tasks);
+  await Task.create({ name: taskName });
 
   res.status(201).send();
 });
 
 router.get("/task/:id", async (req, res) => {
-  const taskId = req.params.id;
-  const tasksObjs = await db.getObjectDefault("/tasks", []);
-
-  const tasks = tasksObjs.map(task => new Task(task));
-
-  const task = tasks.find(t => t.id === taskId);
+  const taskId = parseTaskId(req.params.id);
+  const task = taskId === null ? null : await Task.findByPk(taskId);
 
   if (task) {
     res.status(200).send(task);
@@ -91,42 +65,46 @@ router.get("/task/:id", async (req, res) => {
 });
 
 router.patch("/task/:id/status", async (req, res) => {
-  const taskId = req.params.id;
-  const tasksObjs = await db.getObjectDefault("/tasks", []);
+  const taskId = parseTaskId(req.params.id);
+  const newStatus = Number(req.body.newStatus);
 
-  const tasks = tasksObjs.map(task => new Task(task));
+  if (![0, 1, 2].includes(newStatus)) {
+    res.status(400).send({ error: "Status must be 0, 1 or 2" });
+    return;
+  }
 
-  const task = tasks.find(t => t.id === taskId);
+  const task = taskId === null ? null : await Task.findByPk(taskId);
 
   if (!task) {
     res.status(404).send("");
     return;
   }
 
-  task.status = req.body.newStatus;
-  await db.push("/tasks", tasks);
+  task.status = newStatus as TaskStatus;
+  await task.save();
   res.status(200).send("");
 });
 
 router.post("/task/:id/uploaded-files", upload.array("attached-files"), async (req, res) => {
-  const taskId = req.params.id;
-  const tasksObjs = await db.getObjectDefault("/tasks", []);
-
-  const tasks = tasksObjs.map(task => new Task(task));
-
-  const task = tasks.find(t => t.id === taskId);
+  const taskId = parseTaskId(req.params.id);
+  const task = taskId === null ? null : await Task.findByPk(taskId);
 
   if (!task) {
     res.status(404).send("");
-    return; 
+    return;
   }
 
   const uploadedFiles = (req.files as Express.Multer.File[]).map(file => file.filename);
   task.fileNames = [...task.fileNames, ...uploadedFiles];
-  await db.push("/tasks", tasks);
+  await task.save();
   res.status(200).send("");
 });
 
 app.use("/api", router);
 
-app.listen(PORT, () => console.log(`Server is listening port ${PORT}`));
+initDatabase()
+  .then(() => app.listen(PORT, () => console.log(`Server is listening port ${PORT}`)))
+  .catch((err) => {
+    console.error("Failed to connect to the database", err);
+    process.exit(1);
+  });

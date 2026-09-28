@@ -1,9 +1,23 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tasks-postgres
+    env_file: .env
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
   server:
     build: .
     container_name: tasks-server
+    env_file: .env
     ports:
       - "3000:3000"
     volumes:
-      - ./db.json:/app/db.json
       - ./uploads:/app/uploads
+    depends_on:
+      - postgres
+
+volumes:
+  postgres-data:

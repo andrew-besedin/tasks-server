@@ -12,7 +12,9 @@
   "dependencies": {
     "express": "^5.1.0",
     "multer": "^2.0.2",
-    "node-json-db": "^2.3.1",
+    "pg": "^8.23.0",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.8",
     "tsx": "^4.20.5"
   },
   "devDependencies": {
